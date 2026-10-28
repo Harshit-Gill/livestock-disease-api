@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livestock disease screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f1f4f2;
+    --panel: #ffffff;
+    --ink: #17262b;
+    --ink-2: #44555a;
+    --muted: #5b6b6f;
+    --line: #d3dbd7;
+    --line-strong: #aeb9b4;
+    --seq: #3b5560;          /* neutral slate: used for non-disease charts so it never reads as a disease color */
+    --bar: #3b5560;
+    --bar-soft: #a9bac1;
+    --on-seq: #ffffff;
+    --ok: #1a7f4b;
+    --warn: #b36b00;
+    --bad: #b3261e;
+    /* one fixed color per disease, everywhere */
+    --d-anthrax: #2a78d6;
+    --d-blackleg: #eb6834;
+    --d-foot-and-mouth: #1baf7a;
+    --d-lumpy-virus: #eda100;
+    --d-pneumonia: #e87ba4;
+    --radius: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #111a1d;
+      --panel: #192427;
+      --ink: #e6eeec;
+      --ink-2: #b3c1c0;
+      --muted: #94a5a7;
+      --line: #2a373b;
+      --line-strong: #435257;
+      --seq: #8fb0bc;
+      --bar: #8fb0bc;
+      --bar-soft: #4a6670;
+      --on-seq: #10181b;
+      --ok: #4cc38a;
+      --warn: #e0a23b;
+      --bad: #ff8a80;
+      --d-anthrax: #3987e5;
+      --d-blackleg: #d95926;
+      --d-foot-and-mouth: #199e70;
+      --d-lumpy-virus: #c98500;
+      --d-pneumonia: #d55181;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 1rem/1.55 "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  h1, h2, h3 { margin: 0; line-height: 1.2; }
+  h1 { font-size: clamp(1.7rem, 3.2vw, 2.35rem); font-weight: 700; letter-spacing: -0.015em; }
+  h2 { font-size: 1.3rem; font-weight: 650; letter-spacing: -0.005em; }
+  h3 { font-size: 1.02rem; font-weight: 600; }
+  p { margin: 0; }
+  .small { font-size: 0.875rem; }
+  .muted { color: var(--muted); }
+  a { color: inherit; text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* ---------- top ---------- */
+  .top { display: flex; gap: 24px; justify-content: space-between; align-items: flex-start; padding: 36px 0 26px; flex-wrap: wrap; }
+  .top .lede { max-width: 56ch; margin-top: 10px; color: var(--ink-2); }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--ink-2);
+            border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: var(--panel); }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); display: inline-block; }
+  .status.ok i { background: var(--ok); }
+  .status.wait i { background: var(--warn); }
+  .status.bad i { background: var(--bad); }
+
+  /* ---------- workbench ---------- */
+  .workbench { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .workbench { grid-template-columns: 1fr; } }
+
+  .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .sheet fieldset { border: 0; margin: 0; padding: 18px 20px; border-bottom: 1px solid var(--line); min-width: 0; }
+  .sheet legend { padding: 0; font-weight: 600; font-size: 0.95rem; float: left; width: 100%; margin-bottom: 10px; }
+  .sheet legend + * { clear: both; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 0.85rem; margin-left: 6px; }
+
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; inset: 0; }
+  .seg span { display: block; text-align: center; padding: 9px 4px; font-size: 0.92rem; border-left: 1px solid var(--line-strong); }
+  .seg label:first-child span { border-left: 0; }
+  .seg input:checked + span { background: var(--ink); color: var(--panel); font-weight: 600; }
+  .seg input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: -4px; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field label { display: block; font-size: 0.85rem; color: var(--ink-2); margin-bottom: 4px; }
+  .field input { width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong);
+                 border-radius: var(--radius); padding: 8px 10px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .chip span { display: inline-block; border: 1px solid var(--line-strong); border-radius: 999px; padding: 5px 12px; font-size: 0.9rem; color: var(--ink); }
+  .chip input:checked + span { background: var(--ink); border-color: var(--ink); color: var(--panel); font-weight: 600; }
+  .chip input:disabled { cursor: not-allowed; }
+  .chip input:disabled + span { opacity: 0.4; }
+  .chip input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .count { font-size: 0.85rem; color: var(--muted); margin-top: 10px; }
+
+  .actions { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.85rem; color: var(--muted); }
+  .linkbtn { font: inherit; font-size: 0.85rem; background: none; border: 1px solid var(--line-strong); color: var(--ink);
+             border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+  .linkbtn:hover { border-color: var(--ink); }
+  .go { font: inherit; font-weight: 600; background: var(--ink); color: var(--panel); border: 0; border-radius: var(--radius);
+        padding: 12px 16px; cursor: pointer; }
+  .go:disabled { opacity: 0.6; cursor: progress; }
+  .err { color: var(--bad); font-size: 0.9rem; min-height: 1.2em; }
+
+  /* ---------- result ---------- */
+  .result { min-height: 320px; }
+  .empty { border: 1px dashed var(--line-strong); border-radius: var(--radius); padding: 26px 24px; color: var(--ink-2); max-width: 52ch; }
+  .empty strong { color: var(--ink); }
+  .verdict { font-size: clamp(1.4rem, 2.6vw, 1.9rem); font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+  .verdict-sub { margin-top: 8px; color: var(--ink-2); max-width: 60ch; }
+  .tag { display: inline-block; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--warn); color: var(--ink); border-radius: 4px; padding: 1px 8px; margin-bottom: 10px; }
+  .tag.ok { border-color: var(--ok); }
+  .strip { display: flex; gap: 2px; height: 46px; margin: 22px 0 14px; }
+  .strip span { border-radius: 4px; min-width: 6px; }
+  .probs { list-style: none; margin: 0; padding: 0; }
+  .probs li { display: grid; grid-template-columns: 14px minmax(110px, 160px) 1fr 64px; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 0.95rem; }
+  .probs li:first-child { border-top: 0; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .track { height: 8px; background: color-mix(in srgb, var(--line) 70%, transparent); border-radius: 4px; overflow: hidden; }
+  .track b { display: block; height: 100%; border-radius: 4px; }
+  .pct { text-align: right; font-weight: 600; }
+  .note { margin-top: 16px; font-size: 0.875rem; color: var(--muted); max-width: 70ch; }
+  .note + .note { margin-top: 6px; }
+
+  /* ---------- performance ---------- */
+  .perf { margin-top: 56px; padding-top: 36px; border-top: 2px solid var(--ink); }
+  .perf > header { max-width: 62ch; }
+  .perf > header p { margin-top: 8px; color: var(--ink-2); }
+  .facts { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 26px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .fact { padding: 18px 18px 18px 0; }
+  .fact + .fact { padding-left: 18px; border-left: 1px solid var(--line); }
+  .fact .v { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .fact .l { margin-top: 6px; font-size: 0.92rem; font-weight: 600; }
+  .fact .s { margin-top: 2px; font-size: 0.85rem; color: var(--muted); }
+  @media (max-width: 900px) {
+    .facts { grid-template-columns: 1fr 1fr; }
+    .fact:nth-child(3) { border-left: 0; padding-left: 0; }
+    .fact:nth-child(n+3) { border-top: 1px solid var(--line); }
+  }
+  @media (max-width: 520px) { .facts { grid-template-columns: 1fr; } .fact + .fact { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); } }
+
+  .block { margin-top: 48px; }
+  .block > p.lead { margin-top: 6px; color: var(--ink-2); max-width: 66ch; }
+  .block .body { margin-top: 18px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; }
+  @media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+  .hbars { display: flex; flex-direction: column; gap: 10px; }
+  .hrow { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr) 64px; gap: 14px; align-items: center; }
+  .hrow .lab { font-size: 0.92rem; line-height: 1.3; }
+  .hrow .lab small { display: block; color: var(--muted); font-size: 0.8rem; }
+  .hrow .val { text-align: right; font-weight: 600; font-size: 0.95rem; }
+  .htrack { position: relative; height: 18px; }
+  .htrack .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar-soft); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hrow.hl .bar { background: var(--bar); }
+  .tagd { font-size: 0.72rem; font-weight: 600; border: 1px solid var(--line-strong); border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; }
+  .ref { position: absolute; top: -4px; bottom: -4px; border-left: 1.5px dashed var(--ink-2); }
+  .refcap { font-size: 0.82rem; color: var(--muted); margin-top: 12px; }
+  @media (max-width: 640px) { .hrow { grid-template-columns: 1fr 56px; } .hrow .htrack { grid-column: 1 / 2; } .hrow .lab { grid-column: 1 / 3; } }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  thead th { font-weight: 600; color: var(--ink-2); font-size: 0.85rem; vertical-align: bottom; }
+  .name { display: inline-flex; align-items: center; gap: 8px; }
+  .scroll { overflow-x: auto; }
+  .matrix td.cell { text-align: center; min-width: 74px; font-weight: 600; border: 2px solid var(--panel); }
+  .matrix th.col { text-align: center; max-width: 92px; }
+  .matrix .axis { font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+
+  .drivers { display: flex; flex-direction: column; }
+  .drow { display: grid; grid-template-columns: minmax(130px, 170px) 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+  .drow:first-child { border-top: 0; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { font-size: 0.85rem; border: 1px solid var(--line-strong); border-radius: 999px; padding: 1px 10px; }
+  .pill b { font-weight: 600; margin-left: 4px; color: var(--ink-2); }
+
+  .callout { border-left: 3px solid var(--ink); padding: 2px 0 2px 14px; margin-top: 16px; max-width: 66ch; }
+
+  footer { margin: 64px 0 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.875rem; max-width: 80ch; }
+
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--panel); font-size: 0.82rem;
+         padding: 6px 9px; border-radius: 5px; max-width: 280px; display: none; line-height: 1.35; }
+  .loading { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Livestock disease screening</h1>
+      <p class="lede">Choose the symptoms you see and the model estimates which of five diseases is most likely. When the symptoms fit two diseases equally well, it says so instead of guessing.</p>
+    </div>
+    <div id="apiStatus" class="status" role="status"><i></i><span>Checking the prediction server</span></div>
+  </header>
+
+  <main>
+    <section class="workbench" aria-labelledby="h-predict">
+      <h2 id="h-predict" class="sr-only">Try a prediction</h2>
+
+      <form id="form" class="sheet" novalidate>
+        <fieldset>
+          <legend>Animal <span class="hint">optional</span></legend>
+          <div class="seg" id="animals"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Age and temperature <span class="hint">optional</span></legend>
+          <div class="pair">
+            <div class="field"><label for="age">Age (years)</label><input id="age" type="number" inputmode="decimal" min="0" max="40" step="0.5" placeholder="e.g. 6"></div>
+            <div class="field"><label for="temp">Temperature (°F)</label><input id="temp" type="number" inputmode="decimal" min="95" max="110" step="0.1" placeholder="e.g. 102.4"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Symptoms <span class="hint">pick 1 to 3</span></legend>
+          <div class="chips" id="chips"><span class="loading small">Loading symptoms…</span></div>
+          <p class="count" id="count">0 of 3 selected</p>
+        </fieldset>
+
+        <div class="actions">
+          <div class="examples">
+            <span>Try an example:</span>
+            <button type="button" class="linkbtn" data-example="clear">A clear-cut case</button>
+            <button type="button" class="linkbtn" data-example="tie">Two diseases, same symptoms</button>
+            <button type="button" class="linkbtn" data-example="reset">Clear</button>
+          </div>
+          <p class="err" id="formError" role="alert"></p>
+          <button class="go" id="go" type="submit">Get prediction</button>
+        </div>
+      </form>
+
+      <div class="result" id="result" aria-live="polite">
+        <div class="empty">
+          <p><strong>No prediction yet.</strong></p>
+          <p style="margin-top:6px">Pick up to three symptoms and press Get prediction. The two examples show a case the model can settle and one it can't.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="perf" id="perf" aria-labelledby="h-perf">
+      <header>
+        <h2 id="h-perf">How well it works</h2>
+        <p>Every number below comes from the same public dataset the model was trained on, scored on cases it never saw during training.</p>
+      </header>
+      <div id="perfBody"><p class="loading" style="margin-top:24px">Loading results…</p></div>
+    </section>
+  </main>
+
+  <footer>
+    This is a screening aid built for a course project, not a diagnosis. Animals showing any of these symptoms need a vet.
+  </footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+/* ============ CONFIG ============ */
+// Change this to your Render URL after you deploy, e.g. "https://livestock-api.onrender.com"
+const API_URL = "http://127.0.0.1:8000";
+const METRICS_URL = "metrics.json";   // sits next to this file
+
+/* ============ helpers ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+const n0 = x => Number(x).toLocaleString("en-US");
+const slug = s => s.replace(/\s+/g, "-");
+const dcolor = d => `var(--d-${slug(d)})`;
+const ANIMALS = ["cow", "buffalo", "sheep", "goat"];
+const EXAMPLES = {
+  clear: { symptoms: ["chills", "sweats", "fatigue"], animal: "cow", age: "6", temp: "103.1" },
+  tie:   { symptoms: ["painless lumps", "depression", "loss of appetite"], animal: "buffalo", age: "4", temp: "102.2" },
+  reset: { symptoms: [], animal: "", age: "", temp: "" }
+};
+
+/* ---------- tooltip (hover and keyboard focus) ---------- */
+const tip = $("#tip");
+function showTip(el, x, y) {
+  tip.textContent = el.dataset.tip;
+  tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(x + 14, window.innerWidth - w - 8) + "px";
+  tip.style.top = Math.max(8, y - h - 12) + "px";
+}
+document.addEventListener("mousemove", e => {
+  const el = e.target.closest("[data-tip]");
+  if (el) showTip(el, e.clientX, e.clientY); else tip.style.display = "none";
+});
+document.addEventListener("focusin", e => {
+  const el = e.target.closest("[data-tip]");
+  if (el) { const r = el.getBoundingClientRect(); showTip(el, r.left + r.width / 2, r.top); }
+});
+document.addEventListener("focusout", () => { tip.style.display = "none"; });
+
+/* ---------- API status ---------- */
+const statusEl = $("#apiStatus");
+function setStatus(kind, text) {
+  statusEl.className = "status " + kind;
+  statusEl.querySelector("span").textContent = text;
+}
+async function checkApi() {
+  const slow = setTimeout(() => setStatus("wait", "Waking the server. Free hosting sleeps when idle, so this can take up to a minute."), 3000);
+  try {
+    const ctl = new AbortController();
+    const kill = setTimeout(() => ctl.abort(), 90000);
+    const r = await fetch(API_URL + "/health", { signal: ctl.signal });
+    clearTimeout(kill);
+    if (!r.ok) throw new Error(r.status);
+    setStatus("ok", "Prediction server ready");
+  } catch (e) {
+    setStatus("bad", "Prediction server not responding");
+  } finally { clearTimeout(slow); }
+}
+
+/* ---------- form ---------- */
+let symptomList = [];
+function buildAnimals() {
+  $("#animals").innerHTML = ANIMALS.map(a =>
+    `<label><input type="radio" name="animal" value="${a}"><span>${cap(a)}</span></label>`).join("");
+}
+function buildChips(list) {
+  symptomList = list;
+  $("#chips").innerHTML = list.map(s =>
+    `<label class="chip"><input type="checkbox" value="${esc(s)}"><span>${esc(cap(s))}</span></label>`).join("");
+  $("#chips").addEventListener("change", syncChips);
+}
+function selectedSymptoms() { return [...document.querySelectorAll("#chips input:checked")].map(i => i.value); }
+function syncChips() {
+  const n = selectedSymptoms().length;
+  document.querySelectorAll("#chips input").forEach(i => { i.disabled = n >= 3 && !i.checked; });
+  $("#count").textContent = n + " of 3 selected";
+  $("#formError").textContent = "";
+}
+function applyExample(key) {
+  const ex = EXAMPLES[key];
+  document.querySelectorAll("#chips input").forEach(i => { i.checked = ex.symptoms.includes(i.value); });
+  document.querySelectorAll('input[name="animal"]').forEach(i => { i.checked = i.value === ex.animal; });
+  $("#age").value = ex.age; $("#temp").value = ex.temp;
+  syncChips();
+}
+document.querySelectorAll("[data-example]").forEach(b => b.addEventListener("click", () => applyExample(b.dataset.example)));
+
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const symptoms = selectedSymptoms();
+  if (!symptoms.length) { $("#formError").textContent = "Pick at least one symptom."; return; }
+  const body = { symptoms };
+  const animal = (document.querySelector('input[name="animal"]:checked') || {}).value;
+  if (animal) body.animal = animal;
+  if ($("#age").value !== "") body.age = parseFloat($("#age").value);
+  if ($("#temp").value !== "") body.temperature = parseFloat($("#temp").value);
+
+  const btn = $("#go");
+  btn.disabled = true; btn.textContent = "Predicting…";
+  const slow = setTimeout(() => {
+    $("#result").innerHTML = `<div class="empty"><p><strong>The server was asleep.</strong></p><p style="margin-top:6px">Free hosting pauses when idle. Waking it can take up to a minute, then your result appears here.</p></div>`;
+  }, 4000);
+  try {
+    const ctl = new AbortController();
+    const kill = setTimeout(() => ctl.abort(), 90000);
+    const r = await fetch(API_URL + "/predict", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal
+    });
+    clearTimeout(kill);
+    const data = await r.json();
+    if (!r.ok) {
+      const msg = Array.isArray(data.detail) ? data.detail.map(d => d.msg.replace(/^Value error, /, "")).join(" ") : "The request was rejected.";
+      throw new Error(msg);
+    }
+    renderResult(data, body);
+    setStatus("ok", "Prediction server ready");
+  } catch (err) {
+    const net = err.name === "AbortError" || err instanceof TypeError;
+    $("#result").innerHTML = `<div class="empty"><p><strong>${net ? "Couldn't reach the prediction server." : "That input didn't work."}</strong></p><p style="margin-top:6px">${net ? "Check your connection and try again in a minute." : esc(err.message)}</p></div>`;
+    if (net) setStatus("bad", "Prediction server not responding");
+  } finally {
+    clearTimeout(slow); btn.disabled = false; btn.textContent = "Get prediction";
+  }
+});
+
+function renderResult(d, body) {
+  const entries = Object.entries(d.probabilities);              // already sorted high to low
+  const names = d.possible_diseases.map(cap);
+  const tagHtml = d.ambiguous
+    ? `<span class="tag">Tie between ${names.length} diseases</span>`
+    : `<span class="tag ok">Clear result</span>`;
+  const verdict = d.ambiguous
+    ? `Can't separate ${esc(names.join(" and "))}`
+    : `Most likely ${esc(cap(d.top_prediction))}`;
+  const strip = entries.filter(([, p]) => p >= 0.005)
+    .map(([k, p]) => `<span style="flex:${p};background:${dcolor(k)}" data-tip="${esc(cap(k))}: ${pct(p)}"></span>`).join("");
+  const rows = entries.map(([k, p]) => `
+    <li><span class="sw" style="background:${dcolor(k)}"></span>
+      <span>${esc(cap(k))}</span>
+      <span class="track"><b style="width:${Math.max(p * 100, p > 0 ? 0.6 : 0)}%;background:${dcolor(k)}"></b></span>
+      <span class="pct">${p < 0.001 && p > 0 ? "<0.1%" : pct(p)}</span></li>`).join("");
+  const aria = entries.map(([k, p]) => `${cap(k)} ${pct(p)}`).join(", ");
+
+  let recorded = "";
+  if (d.ignored_inputs && d.ignored_inputs.length) {
+    const bits = [];
+    if (body.animal) bits.push(cap(body.animal));
+    if (body.age !== undefined) bits.push(body.age + " years");
+    if (body.temperature !== undefined) bits.push(body.temperature + " °F");
+    recorded = `<p class="note">You entered ${esc(bits.join(", "))}. The model didn't use ${bits.length > 1 ? "these" : "this"}: in this dataset they don't help tell the diseases apart. <a href="#evidence">See the evidence</a>.</p>`;
+  }
+  $("#result").innerHTML = `
+    ${tagHtml}
+    <p class="verdict">${verdict}</p>
+    <p class="verdict-sub">${esc(d.message)}</p>
+    <div class="strip" role="img" aria-label="Probability of each disease: ${esc(aria)}">${strip}</div>
+    <ul class="probs">${rows}</ul>
+    ${recorded}
+    <p class="note">Screening aid only. A vet exam or lab test confirms any diagnosis.</p>`;
+}
+
+/* ============ performance section ============ */
+function hbarRow({ label, sub, value, scaleMax = 1, hl = false, tag = "", tipText, valText, ref = null }) {
+  const w = Math.max(0, Math.min(100, (value / scaleMax) * 100));
+  return `<div class="hrow ${hl ? "hl" : ""}">
+    <div class="lab">${label}${tag ? `<span class="tagd">${tag}</span>` : ""}${sub ? `<small>${sub}</small>` : ""}</div>
+    <div class="htrack"><span class="bar" style="width:${w}%" tabindex="0" data-tip="${esc(tipText)}"></span>${ref !== null ? `<span class="ref" style="left:${ref / scaleMax * 100}%"></span>` : ""}</div>
+    <div class="val">${valText}</div></div>`;
+}
+
+function renderPerf(m) {
+  const ds = m.dataset, dep = m.deployed, hl = dep.hard_label, dec = dep.decision, ev = m.evidence;
+  const diseases = ds.diseases;
+  let h = "";
+
+  /* summary facts */
+  h += `<div class="facts">
+    <div class="fact"><div class="v">${pct(hl.accuracy)}</div><div class="l">Accuracy of the single best guess</div><div class="s">Macro-F1 ${hl.macro_f1.toFixed(3)} on ${n0(dec.test_rows)} unseen cases</div></div>
+    <div class="fact"><div class="v">${pct(dec.confident_accuracy, 0)}</div><div class="l">Correct when it names one disease</div><div class="s">It commits on ${pct(dec.confident_share)} of cases</div></div>
+    <div class="fact"><div class="v">${pct(dec.ambiguous_share)}</div><div class="l">Flagged as a tie</div><div class="s">All of them lumpy virus or pneumonia</div></div>
+    <div class="fact"><div class="v">${pct(dec.truth_in_decision_set, 0)}</div><div class="l">Of ties include the true disease</div><div class="s">The flag never points away from the answer</div></div>
+  </div>`;
+
+  /* model comparison */
+  const ceiling = ((diseases.length - 2) + 2 * 0.5) / diseases.length;
+  const bars = m.comparison.map(c => {
+    const deployed = c.features === "symptoms only" && c.model === "Logistic Regression";
+    const label = c.model === "Baseline" ? "Always guess the most common disease" : esc(c.model);
+    return hbarRow({
+      label, sub: c.model === "Baseline" ? "" : esc(cap(c.features)), value: c.cv_macro_f1, hl: deployed,
+      tag: deployed ? "deployed" : "", ref: ceiling,
+      tipText: `${c.model}, ${c.features}: macro-F1 ${c.cv_macro_f1.toFixed(3)} ± ${c.cv_std.toFixed(3)} (5-fold cross-validation)`,
+      valText: c.cv_macro_f1.toFixed(3)
+    });
+  }).join("");
+  h += `<div class="block"><h3>How each model scored</h3>
+    <p class="lead">Macro-F1 averages the five diseases equally, so a model can't hide a weak disease behind a strong one. Scores come from 5-fold cross-validation on the training split.</p>
+    <div class="body"><div class="hbars" style="position:relative">${bars}</div>
+    <p class="refcap">Dashed line, about ${ceiling.toFixed(2)}: the ceiling for this data, meaning perfect on ${diseases.length - 2} diseases and a coin flip on the other two. Every real model sits at it. The jump from "symptoms only" to the rows with animal added is a tie-break effect, shown below.</p></div></div>`;
+
+  /* decision matrix */
+  const head = dec.columns.map(c => `<th class="col">${c === "ambiguous" ? "Flagged as a tie" : esc(cap(c))}</th>`).join("");
+  const body = dec.rows.map((r, i) => {
+    const tot = dec.matrix[i].reduce((a, b) => a + b, 0);
+    const cells = dec.matrix[i].map((v, j) => {
+      const share = tot ? v / tot : 0;
+      const col = dec.columns[j];
+      const bg = share > 0 ? `color-mix(in srgb, var(--seq) ${Math.round(share * 100)}%, var(--panel))` : "transparent";
+      const fg = share > 0.55 ? "var(--on-seq)" : "var(--ink)";
+      const t = `${n0(v)} of ${n0(tot)} ${r} cases ${col === "ambiguous" ? "were flagged as a tie" : "were called " + col}`;
+      return `<td class="cell" style="background:${bg};color:${fg}" tabindex="0" data-tip="${esc(t)}">${v ? n0(v) : "·"}</td>`;
+    }).join("");
+    return `<tr><td><span class="name"><span class="sw" style="background:${dcolor(r)}"></span>${esc(cap(r))}</span></td>${cells}</tr>`;
+  }).join("");
+  h += `<div class="block"><h3>What the model decides, case by case</h3>
+    <p class="lead">Rows are the true disease, columns are what the model said, on ${n0(dec.test_rows)} cases it hadn't seen. Shade shows the share of each row.</p>
+    <div class="body scroll"><table class="matrix"><thead><tr><th><span class="axis">True disease ↓ &nbsp; Model said →</span></th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+
+  /* per-class + class balance */
+  const pcRows = diseases.map(d => {
+    const p = hl.per_class[d];
+    return `<tr><td><span class="name"><span class="sw" style="background:${dcolor(d)}"></span>${esc(cap(d))}</span></td>
+      <td>${p.precision.toFixed(3)}</td><td>${p.recall.toFixed(3)}</td><td>${p["f1-score"].toFixed(3)}</td><td>${n0(p.support)}</td></tr>`;
+  }).join("");
+  const maxC = Math.max(...Object.values(ds.class_counts));
+  const cb = diseases.map(d => `<div class="hrow">
+      <div class="lab"><span class="name"><span class="sw" style="background:${dcolor(d)}"></span>${esc(cap(d))}</span></div>
+      <div class="htrack"><span class="bar" style="width:${ds.class_counts[d] / maxC * 100}%;background:${dcolor(d)}" tabindex="0" data-tip="${esc(cap(d))}: ${n0(ds.class_counts[d])} cases (${pct(ds.class_counts[d] / ds.rows)})"></span></div>
+      <div class="val">${n0(ds.class_counts[d])}</div></div>`).join("");
+  h += `<div class="block two">
+    <div><h3>Single best guess, disease by disease</h3>
+      <p class="lead">If the model had to name one disease every time. Lumpy virus scores zero because on a tie it always picks pneumonia, the slightly more common of the two.</p>
+      <div class="body scroll"><table><thead><tr><th>Disease</th><th>Precision</th><th>Recall</th><th>F1</th><th>Test cases</th></tr></thead><tbody>${pcRows}</tbody></table></div></div>
+    <div><h3>How many cases of each disease</h3>
+      <p class="lead">${n0(ds.rows)} cases in total. The classes are close enough in size that no rebalancing was needed.</p>
+      <div class="body"><div class="hbars">${cb}</div></div></div></div>`;
+
+  /* drivers */
+  const drows = diseases.map(d => {
+    const pills = m.top_symptoms[d].filter(s => s.weight > 0.5)
+      .map(s => `<span class="pill">${esc(cap(s.symptom))}<b>+${s.weight.toFixed(1)}</b></span>`).join("");
+    return `<div class="drow"><span class="name"><span class="sw" style="background:${dcolor(d)}"></span>${esc(cap(d))}</span><div class="pills">${pills}</div></div>`;
+  }).join("");
+  const a = m.top_symptoms["lumpy virus"], b = m.top_symptoms["pneumonia"];
+  const same = a.slice(0, 3).every((s, i) => s.symptom === b[i].symptom && Math.abs(s.weight - b[i].weight) < 0.5);
+  h += `<div class="block"><h3>Which symptoms point to which disease</h3>
+    <p class="lead">The symptoms that push the model hardest toward each disease. Bigger numbers mean a stronger push.</p>
+    <div class="body drivers">${drows}</div>
+    ${same ? `<p class="callout">Lumpy virus and pneumonia learned the same three symptoms with almost the same weights. The dataset gives the model nothing to tell them apart, which is why they show up as a tie.</p>` : ""}</div>`;
+
+  /* evidence */
+  const dis = Object.entries(ev.age_temp_by_disease);
+  const ages = dis.map(([, v]) => v.age_mean), temps = dis.map(([, v]) => v.temp_mean);
+  const rng = (arr, d) => `${Math.min(...arr).toFixed(d)} to ${Math.max(...arr).toFixed(d)}`;
+  const etab = dis.map(([d, v]) => `<tr><td><span class="name"><span class="sw" style="background:${dcolor(d)}"></span>${esc(cap(d))}</span></td>
+      <td>${v.age_mean.toFixed(1)} <span class="muted">± ${v.age_std.toFixed(1)}</span></td><td>${v.temp_mean.toFixed(1)} <span class="muted">± ${v.temp_std.toFixed(1)}</span></td></tr>`).join("");
+  const eb = [
+    hbarRow({ label: "Model given animal, age and temperature", value: ev.ambiguous_subset_accuracy_all_features, scaleMax: 1, ref: 0.5,
+      tipText: `Right on ${pct(ev.ambiguous_subset_accuracy_all_features)} of the ${n0(ev.ambiguous_test_rows)} tied cases`, valText: pct(ev.ambiguous_subset_accuracy_all_features) }),
+    hbarRow({ label: "Always guessing the more common disease", value: ev.ambiguous_subset_always_guess_majority, scaleMax: 1, hl: true, ref: 0.5,
+      tipText: `Right on ${pct(ev.ambiguous_subset_always_guess_majority)} of the ${n0(ev.ambiguous_test_rows)} tied cases`, valText: pct(ev.ambiguous_subset_always_guess_majority) })
+  ].join("");
+  h += `<div class="block" id="evidence"><h3>Do animal, age or temperature help?</h3>
+    <p class="lead">No. This is why the live model ignores them.</p>
+    <div class="body two">
+      <div>
+        <p class="small" style="margin-bottom:14px">Among the ${n0(ev.ambiguous_test_rows)} test cases where lumpy virus and pneumonia show identical symptoms, a model that also saw animal, age and temperature did no better than always guessing the more common disease.</p>
+        <div class="hbars">${eb}</div>
+        <p class="refcap">Dashed line marks a coin flip (50%).</p>
+      </div>
+      <div class="scroll"><table><thead><tr><th>Disease</th><th>Mean age (years)</th><th>Mean temp (°F)</th></tr></thead><tbody>${etab}</tbody></table>
+        <p class="refcap">Average age only ranges ${rng(ages, 1)} years across diseases, and temperature ${rng(temps, 1)} °F. Both are flat.</p></div>
+    </div></div>`;
+
+  /* dataset facts */
+  h += `<div class="block"><h3>About the data</h3>
+    <p class="lead">${n0(ds.rows)} cases, ${ds.symptoms} symptoms, ${diseases.length} diseases. Only ${ds.unique_symptom_combos} distinct symptom combinations appear, so the data looks synthetic. ${n0(ds.ambiguous_rows)} cases (${pct(ds.ambiguous_rows / ds.rows, 0)}) share the one combination that occurs for both lumpy virus and pneumonia. That single combination is the reason no model can score above the ceiling shown earlier.</p></div>`;
+
+  $("#perfBody").innerHTML = h;
+}
+
+/* ============ boot ============ */
+buildAnimals();
+checkApi();
+fetch(METRICS_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(m => { buildChips(m.symptoms); renderPerf(m); })
+  .catch(() => {
+    $("#chips").innerHTML = `<span class="small">Couldn't load metrics.json. Open this page through a web server (for example <code>python -m http.server</code>) or GitHub Pages, not by double-clicking the file.</span>`;
+    $("#perfBody").innerHTML = `<p class="muted" style="margin-top:24px">Couldn't load metrics.json, so the results can't be shown.</p>`;
+  });
+</script>
+</body>
+</html>

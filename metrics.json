@@ -1,0 +1,375 @@
+{
+ "dataset": {
+  "rows": 43778,
+  "symptoms": 24,
+  "diseases": [
+   "anthrax",
+   "blackleg",
+   "foot and mouth",
+   "lumpy virus",
+   "pneumonia"
+  ],
+  "class_counts": {
+   "anthrax": 9842,
+   "blackleg": 9713,
+   "foot and mouth": 9701,
+   "lumpy virus": 7192,
+   "pneumonia": 7330
+  },
+  "unique_symptom_combos": 82,
+  "ambiguous_combos": 1,
+  "ambiguous_rows": 14522,
+  "animals": [
+   "buffalo",
+   "cow",
+   "goat",
+   "sheep"
+  ],
+  "age_range": [
+   1.0,
+   15.0
+  ],
+  "temp_range": [
+   100.0,
+   105.0
+  ]
+ },
+ "symptoms": [
+  "blisters on gums",
+  "blisters on hooves",
+  "blisters on mouth",
+  "blisters on tongue",
+  "chest discomfort",
+  "chills",
+  "crackling sound",
+  "depression",
+  "difficulty walking",
+  "fatigue",
+  "lameness",
+  "loss of appetite",
+  "painless lumps",
+  "shortness of breath",
+  "sores on gums",
+  "sores on hooves",
+  "sores on mouth",
+  "sores on tongue",
+  "sweats",
+  "swelling in abdomen",
+  "swelling in extremities",
+  "swelling in limb",
+  "swelling in muscle",
+  "swelling in neck"
+ ],
+ "comparison": [
+  {
+   "features": "none (majority class)",
+   "model": "Baseline",
+   "cv_macro_f1": 0.0734,
+   "cv_std": 0.0
+  },
+  {
+   "features": "symptoms only",
+   "model": "Logistic Regression",
+   "cv_macro_f1": 0.7328,
+   "cv_std": 0.0007
+  },
+  {
+   "features": "symptoms only",
+   "model": "KNN (k=5)",
+   "cv_macro_f1": 0.7335,
+   "cv_std": 0.0008
+  },
+  {
+   "features": "symptoms + animal",
+   "model": "Logistic Regression",
+   "cv_macro_f1": 0.7944,
+   "cv_std": 0.0071
+  },
+  {
+   "features": "symptoms + animal",
+   "model": "KNN (k=31)",
+   "cv_macro_f1": 0.795,
+   "cv_std": 0.0065
+  },
+  {
+   "features": "symptoms + animal + age + temperature",
+   "model": "Logistic Regression",
+   "cv_macro_f1": 0.7953,
+   "cv_std": 0.0035
+  },
+  {
+   "features": "symptoms + animal + age + temperature",
+   "model": "KNN (k=51)",
+   "cv_macro_f1": 0.7913,
+   "cv_std": 0.0025
+  }
+ ],
+ "deployed": {
+  "hard_label": {
+   "accuracy": 0.8358,
+   "macro_f1": 0.7342,
+   "per_class": {
+    "anthrax": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1969
+    },
+    "blackleg": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1943
+    },
+    "foot and mouth": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1940
+    },
+    "lumpy virus": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1-score": 0.0,
+     "support": 1438
+    },
+    "pneumonia": {
+     "precision": 0.5048,
+     "recall": 1.0,
+     "f1-score": 0.6709,
+     "support": 1466
+    }
+   }
+  },
+  "decision": {
+   "confident_share": 0.6683,
+   "confident_accuracy": 1.0,
+   "ambiguous_share": 0.3317,
+   "truth_in_decision_set": 1.0,
+   "columns": [
+    "anthrax",
+    "blackleg",
+    "foot and mouth",
+    "lumpy virus",
+    "pneumonia",
+    "ambiguous"
+   ],
+   "rows": [
+    "anthrax",
+    "blackleg",
+    "foot and mouth",
+    "lumpy virus",
+    "pneumonia"
+   ],
+   "matrix": [
+    [
+     1969,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     1943,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     1940,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     1438
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     1466
+    ]
+   ],
+   "test_rows": 8756
+  }
+ },
+ "top_symptoms": {
+  "anthrax": [
+   {
+    "symptom": "chest discomfort",
+    "weight": 4.1
+   },
+   {
+    "symptom": "fatigue",
+    "weight": 4.1
+   },
+   {
+    "symptom": "sweats",
+    "weight": 4.06
+   },
+   {
+    "symptom": "shortness of breath",
+    "weight": 4.04
+   }
+  ],
+  "blackleg": [
+   {
+    "symptom": "crackling sound",
+    "weight": 8.23
+   },
+   {
+    "symptom": "swelling in muscle",
+    "weight": 6.41
+   },
+   {
+    "symptom": "swelling in limb",
+    "weight": 6.24
+   },
+   {
+    "symptom": "depression",
+    "weight": 4.0
+   }
+  ],
+  "foot and mouth": [
+   {
+    "symptom": "lameness",
+    "weight": 4.0
+   },
+   {
+    "symptom": "difficulty walking",
+    "weight": 4.0
+   },
+   {
+    "symptom": "loss of appetite",
+    "weight": 3.63
+   },
+   {
+    "symptom": "sores on gums",
+    "weight": 2.25
+   }
+  ],
+  "lumpy virus": [
+   {
+    "symptom": "painless lumps",
+    "weight": 6.05
+   },
+   {
+    "symptom": "depression",
+    "weight": 3.14
+   },
+   {
+    "symptom": "loss of appetite",
+    "weight": 0.86
+   },
+   {
+    "symptom": "swelling in neck",
+    "weight": -0.29
+   }
+  ],
+  "pneumonia": [
+   {
+    "symptom": "painless lumps",
+    "weight": 6.26
+   },
+   {
+    "symptom": "depression",
+    "weight": 3.24
+   },
+   {
+    "symptom": "loss of appetite",
+    "weight": 0.75
+   },
+   {
+    "symptom": "swelling in neck",
+    "weight": -0.3
+   }
+  ]
+ },
+ "evidence": {
+  "reference_model": "Logistic Regression, all features, balanced",
+  "reference_test": {
+   "accuracy": 0.8322,
+   "macro_f1": 0.7972,
+   "per_class": {
+    "anthrax": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1969
+    },
+    "blackleg": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1943
+    },
+    "foot and mouth": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "f1-score": 1.0,
+     "support": 1940
+    },
+    "lumpy virus": {
+     "precision": 0.4883,
+     "recall": 0.4485,
+     "f1-score": 0.4676,
+     "support": 1438
+    },
+    "pneumonia": {
+     "precision": 0.4991,
+     "recall": 0.5389,
+     "f1-score": 0.5182,
+     "support": 1466
+    }
+   }
+  },
+  "ambiguous_test_rows": 2904,
+  "ambiguous_subset_accuracy_all_features": 0.4941,
+  "ambiguous_subset_always_guess_majority": 0.5048,
+  "age_temp_by_disease": {
+   "anthrax": {
+    "age_mean": 6.73,
+    "age_std": 3.88,
+    "temp_mean": 102.24,
+    "temp_std": 1.39
+   },
+   "blackleg": {
+    "age_mean": 6.76,
+    "age_std": 3.84,
+    "temp_mean": 102.26,
+    "temp_std": 1.38
+   },
+   "foot and mouth": {
+    "age_mean": 6.7,
+    "age_std": 3.88,
+    "temp_mean": 102.23,
+    "temp_std": 1.39
+   },
+   "lumpy virus": {
+    "age_mean": 6.84,
+    "age_std": 3.94,
+    "temp_mean": 102.31,
+    "temp_std": 1.43
+   },
+   "pneumonia": {
+    "age_mean": 6.85,
+    "age_std": 3.9,
+    "temp_mean": 102.33,
+    "temp_std": 1.42
+   }
+  }
+ }
+}
